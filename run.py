@@ -3,6 +3,7 @@
     python run.py login            tarayicida LinkedIn'e elle giris yap, oturumu kaydet
     python run.py apply --dry      basvurmadan, hangi ilanlara basvurulacagini goster
     python run.py apply            basvur (gunluk kotaya kadar)
+    python run.py ui               yerel arayuzu ac (http://127.0.0.1:8765)
     python run.py status           bugunku kota ve son kayitlar
 """
 import argparse
@@ -74,6 +75,11 @@ async def cmd_apply(args):
         await b.close()
 
 
+def cmd_ui(_):
+    import ui
+    ui.main()
+
+
 def cmd_status(_):
     prof = P.load()
     q = Quota(prof["daily_limits"])
@@ -89,11 +95,12 @@ if __name__ == "__main__":
     sp.add_parser("setup")
     sp.add_parser("login")
     sp.add_parser("status")
+    sp.add_parser("ui")
     a = sp.add_parser("apply")
     a.add_argument("--dry", action="store_true")
     a.add_argument("--limit", type=int, help="bu calistirmada en fazla N basvuru")
     a.add_argument("--min-score", type=int, help="en az puan (varsayilan 50)")
     ns = ap.parse_args()
-    res = {"setup": cmd_setup, "login": cmd_login, "apply": cmd_apply, "status": cmd_status}[ns.cmd](ns)
+    res = {"setup": cmd_setup, "login": cmd_login, "apply": cmd_apply, "status": cmd_status, "ui": cmd_ui}[ns.cmd](ns)
     if asyncio.iscoroutine(res):
         asyncio.run(res)

@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Başvuru Botu</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#1b1f24; --mute:#667085; --line:#e4e7ec; --acc:#2563eb; --ok:#16a34a; --warn:#d97706; --bad:#dc2626; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0f1115; --card:#181b21; --ink:#e8eaed; --mute:#98a2b3; --line:#2a2f38; --acc:#6b9bff; --ok:#4ade80; --warn:#fbbf24; --bad:#f87171; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 system-ui,Segoe UI,sans-serif; }
+  main { max-width:980px; margin:0 auto; padding:20px 16px 60px; }
+  h1 { font-size:22px; margin:6px 0 2px; } h2 { font-size:16px; margin:0 0 12px; }
+  .sub { color:var(--mute); margin:0 0 18px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:16px; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  button { font:inherit; border:1px solid var(--line); background:var(--card); color:var(--ink); padding:8px 14px; border-radius:8px; cursor:pointer; }
+  button.p { background:var(--acc); color:#fff; border-color:var(--acc); } button.d { color:var(--bad); }
+  button:disabled { opacity:.5; cursor:default; }
+  input, select, textarea { font:inherit; border:1px solid var(--line); background:var(--bg); color:var(--ink); padding:7px 9px; border-radius:8px; }
+  .bar { height:10px; background:var(--line); border-radius:6px; overflow:hidden; flex:1; min-width:140px; }
+  .bar i { display:block; height:100%; background:var(--acc); }
+  table { width:100%; border-collapse:collapse; font-size:13.5px; }
+  th, td { text-align:left; padding:7px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--mute); font-weight:600; }
+  .tag { padding:2px 8px; border-radius:99px; font-size:12px; border:1px solid var(--line); }
+  .applied { color:var(--ok); } .needs_answer { color:var(--warn); } .failed { color:var(--bad); }
+  .chips span { display:inline-block; margin:2px 4px 2px 0; padding:2px 9px; border:1px solid var(--line); border-radius:99px; font-size:12.5px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; }
+  label { display:block; font-size:13px; color:var(--mute); margin-bottom:3px; }
+  .mute { color:var(--mute); } pre { white-space:pre-wrap; font-size:12px; max-height:220px; overflow:auto; margin:0; }
+  .drop { border:2px dashed var(--line); border-radius:10px; padding:16px; text-align:center; color:var(--mute); }
+  .drop.on { border-color:var(--acc); color:var(--acc); }
+  .scroll { overflow-x:auto; }
+</style>
+</head>
+<body>
+<main>
+  <h1>LinkedIn Başvuru Botu</h1>
+  <p class="sub">Her şey bu bilgisayarda çalışır. Yapay zeka ve dış servis kullanılmaz.</p>
+
+  <div class="card" id="status"></div>
+  <div class="card" id="questions"></div>
+  <div class="card" id="cvs"></div>
+  <div class="card" id="settings"></div>
+  <div class="card"><h2>Son kayıtlar</h2><div class="scroll" id="jobs"></div></div>
+  <div class="card"><h2>Çalışma günlüğü</h2><pre id="log" class="mute"></pre></div>
+</main>
+
+<script>
+let S = null, TOKEN = '';
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const stLabel = {applied:'Başvuruldu', needs_answer:'Cevap gerekli', failed:'Hata', skipped:'Atlandı'};
+
+async function api(path, body, raw) {
+  const r = await fetch(path, body === undefined ? {} : {method:'POST', headers: raw ? {'X-Token':TOKEN} : {'X-Token':TOKEN,'Content-Type':'application/json'}, body: raw ? body : JSON.stringify(body)});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) alert(j.error || 'Hata');
+  return j;
+}
+async function post(path, body) { await api(path, body ?? {}); await load(true); }
+
+function renderStatus() {
+  const [used, lim] = S.quota.linkedin;
+  $('status').innerHTML = `
+    <h2>Durum</h2>
+    <div class="row" style="margin-bottom:12px">
+      <b>LinkedIn bugün</b><div class="bar"><i style="width:${Math.min(100, used / lim * 100)}%"></i></div><b>${used} / ${lim}</b>
+    </div>
+    <div class="row">
+      <button class="p" ${S.running || !S.logged_in || !S.cvs.length ? 'disabled' : ''} onclick="post('/api/start')">▶ Başlat</button>
+      <button ${S.running ? '' : 'disabled'} onclick="post('/api/stop')">■ Durdur</button>
+      <button onclick="post('/api/login')" ${S.login_running ? 'disabled' : ''}>${S.logged_in ? 'LinkedIn girişini yenile' : 'LinkedIn\'e giriş yap'}</button>
+      <span class="mute">${S.running ? '🟢 Çalışıyor' : '⚪ Beklemede'}${S.logged_in ? '' : ' · önce giriş yapmalısın'}${S.cvs.length ? '' : ' · önce CV ekle'}</span>
+    </div>
+    <p class="mute" style="margin:10px 0 0">Toplam: ${S.stats.applied || 0} başvuru, ${S.stats.needs_answer || 0} cevap bekleyen, ${S.stats.failed || 0} hata, ${S.stats.skipped || 0} atlanan ilan.</p>`;
+}
+
+function renderQuestions() {
+  if (!S.questions.length) { $('questions').innerHTML = '<h2>Cevap bekleyen sorular</h2><p class="mute" style="margin:0">Şu an yok.</p>'; return; }
+  $('questions').innerHTML = '<h2>Cevap bekleyen sorular</h2><p class="mute" style="margin-top:0">Bu sorular yüzünden ilanlar atlandı. Cevap yazarsan sonraki çalıştırmada kullanılır (soruyu içeren her alana yazılır). Evet/Hayır için <code>yes</code> veya <code>no</code> yaz.</p>' +
+    S.questions.map(([q, n], i) => `<div class="row" style="margin-bottom:8px"><span style="flex:1;min-width:220px">${esc(q)} <span class="mute">(${n}×)</span></span><input id="qa${i}" placeholder="cevap" style="width:150px"><button onclick="addAnswer(${i})">Kaydet</button></div>`).join('');
+}
+async function addAnswer(i) {
+  const v = $('qa' + i).value.trim(); if (!v) return;
+  await post('/api/answer', {key: S.questions[i][0], value: v});
+}
+
+function renderCVs() {
+  $('cvs').innerHTML = `<h2>CV'ler</h2>
+    <div class="drop" id="drop">CV'ni (PDF veya DOCX) buraya sürükle ya da <label style="display:inline;color:var(--acc);cursor:pointer">dosya seç<input type="file" id="file" accept=".pdf,.docx" hidden></label></div>` +
+    S.cvs.map(c => `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)">
+      <div class="row"><b style="flex:1">${esc(c.name)}</b><button class="d" onclick="delCV('${esc(c.name)}')">Sil</button></div>
+      <div class="mute">~${c.years} yıl deneyim (${esc(c.seniority)}) · rol: ${esc(c.roles.join(', ') || '—')}</div>
+      <div class="chips">${c.skills.map(s => `<span>${esc(s)}</span>`).join('')}</div>
+      <div class="mute" style="font-size:13px">Arama: ${esc(c.search.join(' · '))}</div></div>`).join('') +
+    (S.cvs.length ? '' : '<p class="mute">Henüz CV yok.</p>');
+  const drop = $('drop');
+  drop.ondragover = e => { e.preventDefault(); drop.classList.add('on'); };
+  drop.ondragleave = () => drop.classList.remove('on');
+  drop.ondrop = e => { e.preventDefault(); drop.classList.remove('on'); upload(e.dataTransfer.files); };
+  $('file').onchange = e => upload(e.target.files);
+}
+async function upload(files) {
+  for (const f of files) { const fd = new FormData(); fd.append('cv', f, f.name); await api('/api/upload', fd, true); }
+  load(true);
+}
+async function delCV(n) { if (confirm(n + ' silinsin mi?')) await post('/api/delete_cv?name=' + encodeURIComponent(n)); }
+
+let editing = false;
+function renderSettings() {
+  if (editing) return;
+  const p = S.profile;
+  const ans = Object.entries(p.answers).map(([k, v]) => [k, Array.isArray(v) ? v.join(' | ') : v]);
+  $('settings').innerHTML = `<h2>Ayarlar</h2>
+    <div class="grid">
+      <div><label>Günlük başvuru sınırı</label><input type="number" id="s_lim" min="1" max="100" value="${p.daily_limits.linkedin}"></div>
+      <div><label>En az ilan puanı (0–100)</label><input type="number" id="s_min" min="0" max="100" value="${p.min_score}"></div>
+      <div><label>Çalışma şekli</label><select id="s_wt">${['', 'Remote', 'On-site', 'Hybrid'].map(o => `<option ${o === p.work_type ? 'selected' : ''} value="${o}">${o || 'Hepsi'}</option>`).join('')}</select></div>
+      <div><label>Konum (boş = dünya geneli)</label><input id="s_loc" value="${esc(p.location)}"></div>
+      <div><label>Yazılımla ilgili her ilana bak</label><select id="s_any"><option value="1" ${p.any_software ? 'selected' : ''}>Evet</option><option value="0" ${p.any_software ? '' : 'selected'}>Hayır, sadece CV rolüne uyanlar</option></select></div>
+    </div>
+    <label style="margin-top:14px">Form cevapları <span class="mute">(soru bu anahtarı içeriyorsa cevap yazılır; birden fazla değeri <code>|</code> ile ayır, biri rastgele seçilir)</span></label>
+    <div id="ans">${ans.map(([k, v]) => ansRow(k, v)).join('')}</div>
+    <div class="row" style="margin-top:8px"><button onclick="addRow()">+ Cevap ekle</button></div>
+    <label style="margin-top:14px">Kapak yazısı</label><textarea id="s_cl" rows="5" style="width:100%">${esc(p.cover_letter)}</textarea>
+    <div class="row" style="margin-top:12px"><button class="p" onclick="saveSettings()">Kaydet</button><span class="mute" id="saved"></span></div>`;
+  $('settings').oninput = () => { editing = true; };
+}
+const ansRow = (k, v) => `<div class="row ar" style="margin-bottom:6px"><input class="ak" value="${esc(k)}" style="width:210px" placeholder="anahtar"><input class="av" value="${esc(v)}" style="flex:1;min-width:160px" placeholder="cevap"><button class="d" onclick="this.parentElement.remove(); editing = true">×</button></div>`;
+function addRow() { $('ans').insertAdjacentHTML('beforeend', ansRow('', '')); editing = true; }
+async function saveSettings() {
+  const answers = {};
+  document.querySelectorAll('.ar').forEach(r => {
+    const k = r.querySelector('.ak').value.trim(), v = r.querySelector('.av').value.trim();
+    if (!k) return;
+    answers[k] = v.includes('|') ? v.split('|').map(x => x.trim()).filter(Boolean) : v;
+  });
+  const lim = +$('s_lim').value;
+  const p = {...S.profile, answers, cover_letter: $('s_cl').value, min_score: +$('s_min').value,
+    work_type: $('s_wt').value, location: $('s_loc').value.trim(), any_software: $('s_any').value === '1',
+    daily_limits: {...S.profile.daily_limits, linkedin: lim}};
+  await api('/api/profile', p);
+  editing = false; $('saved').textContent = 'Kaydedildi ✓'; load(true);
+}
+
+function renderJobs() {
+  $('jobs').innerHTML = S.jobs.length ? `<table><tr><th>Zaman</th><th>Durum</th><th>Puan</th><th>İlan</th><th>CV</th><th>Not</th></tr>` +
+    S.jobs.map(j => `<tr><td class="mute">${esc(j.ts.slice(5, 16).replace('T', ' '))}</td><td class="${j.status}">${stLabel[j.status] || j.status}</td><td>${j.score}</td><td>${esc(j.title)}<div class="mute">${esc(j.company)}</div></td><td class="mute">${esc(j.cv)}</td><td class="mute">${esc((j.note || '').slice(0, 90))}</td></tr>`).join('') + '</table>'
+    : '<p class="mute" style="margin:0">Henüz kayıt yok.</p>';
+}
+
+async function load(force) {
+  S = await api('/api/state'); TOKEN = S.token;
+  renderStatus(); renderQuestions(); renderJobs();
+  $('log').textContent = S.log || 'Henüz çalıştırılmadı.';
+  if (force || !$('drop')) renderCVs();
+  renderSettings();
+}
+load(true);
+setInterval(() => load(false), 5000);
+</script>
+</body>
+</html>

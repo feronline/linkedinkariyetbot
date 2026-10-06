@@ -27,6 +27,10 @@ CV'ni yükle, bot CV'ni **yapay zeka kullanmadan, tamamen kendi bilgisayarında*
    - başvurmaya başlar.
 4. `data/profile.json` dosyasını aç ve **`answers`** bölümünü doldur (aşağıya bak), sonra tekrar çalıştır.
 
+## Arayüz (isteğe bağlı)
+
+`arayuz.bat` ya da `python run.py ui` yerel bir web arayüzü açar (`http://127.0.0.1:8765`, sadece bu bilgisayardan erişilir): CV yükle, analiz sonucunu gör, ayarları ve form cevaplarını düzenle, atlanan soruları tek tıkla cevapla, botu başlat/durdur, bugünkü kotayı ve kayıtları izle.
+
 ## Elle kullanım
 
 ```powershell
@@ -92,7 +96,9 @@ Yetenek ve rol listelerini `botcore/taxonomy.py` içinde kendi alanına göre ge
 
 ```
 baslat.bat            tek tıkla kur + çalıştır (Windows)
-run.py                komutlar: setup, login, apply, status
+run.py                komutlar: setup, login, apply, status, ui
+ui.py / ui.html       yerel arayüz
+scheduled.py          günlük rastgele saatli çalıştırma
 botcore/
   analyzer.py         yapay zekasız CV analizi ve ilan puanlama
   taxonomy.py         yetenek / rol sözlüğü
