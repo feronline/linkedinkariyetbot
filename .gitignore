@@ -1,0 +1,14 @@
+# Kisisel veri - ASLA paylasma
+data/
+session_state.json
+*.log
+*.csv
+*.pdf
+*.docx
+debug_screenshot_*.png
+config.py
+.env
+__pycache__/
+.venv/
+legacy/
+*.png
