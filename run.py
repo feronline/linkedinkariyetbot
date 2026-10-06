@@ -35,19 +35,31 @@ def cmd_setup(_):
         print(f"\n{P.PROFILE} olusturuldu. Telefon, maas, website gibi cevaplari 'answers' altina yaz.")
 
 
-async def cmd_login(_):
+SITES = {"linkedin": "https://www.linkedin.com/login"}
+
+
+async def cmd_login(args):
+    """Tarayici acar; dogrulama (captcha/basili tut) ve girisi SEN yaparsin. Pencereyi kapatinca oturum kaydedilir."""
     from playwright.async_api import async_playwright
+    site = getattr(args, "site", "linkedin")
     P.SESSIONS.mkdir(parents=True, exist_ok=True)
+    out = P.SESSIONS / f"{site}.json"
     async with async_playwright() as pw:
         b = await pw.chromium.launch(headless=False)
-        c = await b.new_context(viewport=None)
+        c = await b.new_context(viewport=None, locale="tr-TR")
         pg = await c.new_page()
-        await pg.goto("https://www.linkedin.com/login")
-        print("Tarayicida giris yap (2FA dahil). Feed acilinca otomatik kaydedilir...")
-        await pg.wait_for_url("**/feed/**", timeout=300_000)
-        await c.storage_state(path=str(P.SESSIONS / "linkedin.json"))
-        print("Oturum kaydedildi.")
-        await b.close()
+        await pg.goto(SITES[site])
+        print(f"{site}: acilan pencerede dogrulamayi coz ve giris yap. Bitince pencereyi KAPAT; oturum kaydedilir.")
+        try:
+            while not pg.is_closed():
+                await asyncio.sleep(3)
+                try:
+                    await c.storage_state(path=str(out))     # surekli kaydet: pencere kapaninca son hali kalir
+                except Exception:
+                    break
+        finally:
+            await b.close()
+        print(f"Oturum kaydedildi: {out}")
 
 
 async def cmd_apply(args):
@@ -93,7 +105,8 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     sp = ap.add_subparsers(dest="cmd", required=True)
     sp.add_parser("setup")
-    sp.add_parser("login")
+    lg = sp.add_parser("login")
+    lg.add_argument("site", nargs="?", default="linkedin", choices=list(SITES))
     sp.add_parser("status")
     sp.add_parser("ui")
     a = sp.add_parser("apply")
