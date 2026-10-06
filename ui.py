@@ -71,7 +71,8 @@ def state() -> dict:
     for label in meta:                      # yeni kayit (secenekli) olan sorular da listeye girer
         qs.setdefault(label, 1)
     answers = {fold(k): v for k, v in prof["answers"].items()}
-    done = [(q, answers[fold(q)]) for q in qs if fold(q) in answers]
+    # cevaplanmis sorular: kayitli cevaplar icinde uzun (soru metni) olanlar
+    done = [(k, v) for k, v in prof["answers"].items() if len(k) > 30]
     qs = {q: n for q, n in qs.items() if fold(q) not in answers}
     log = LOG.read_text(encoding="utf-8", errors="replace")[-3000:] if LOG.exists() else ""
     return {
