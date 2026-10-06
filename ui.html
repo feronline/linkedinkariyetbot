@@ -32,9 +32,12 @@
   .drop { border:2px dashed var(--line); border-radius:10px; padding:16px; text-align:center; color:var(--mute); }
   .drop.on { border-color:var(--acc); color:var(--acc); }
   .scroll { overflow-x:auto; }
+  #toast { position:fixed; right:16px; bottom:16px; background:var(--ok); color:#fff; padding:10px 16px; border-radius:10px; opacity:0; transition:opacity .25s; pointer-events:none; }
+  #toast.on { opacity:1; }
 </style>
 </head>
 <body>
+<div id="toast"></div>
 <main>
   <h1>LinkedIn Başvuru Botu</h1>
   <p class="sub">Her şey bu bilgisayarda çalışır. Yapay zeka ve dış servis kullanılmaz.</p>
@@ -51,6 +54,7 @@
 let S = null, TOKEN = '';
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function toast(t) { const e = $('toast'); e.textContent = t; e.classList.add('on'); setTimeout(() => e.classList.remove('on'), 2200); }
 const stLabel = {applied:'Başvuruldu', needs_answer:'Cevap gerekli', failed:'Hata', skipped:'Atlandı'};
 
 async function api(path, body, raw) {
@@ -59,7 +63,7 @@ async function api(path, body, raw) {
   if (!r.ok) alert(j.error || 'Hata');
   return j;
 }
-async function post(path, body) { await api(path, body ?? {}); await load(true); }
+async function post(path, body) { const r = await api(path, body ?? {}); if (r.ok) toast('✓ Tamam'); await load(true); }
 
 function renderStatus() {
   const [used, lim] = S.quota.linkedin;
@@ -78,13 +82,17 @@ function renderStatus() {
 }
 
 function renderQuestions() {
-  if (!S.questions.length) { $('questions').innerHTML = '<h2>Cevap bekleyen sorular</h2><p class="mute" style="margin:0">Şu an yok.</p>'; return; }
-  $('questions').innerHTML = '<h2>Cevap bekleyen sorular</h2><p class="mute" style="margin-top:0">Bu sorular yüzünden ilanlar atlandı. Cevap yazarsan sonraki çalıştırmada kullanılır (soruyu içeren her alana yazılır). Evet/Hayır için <code>yes</code> veya <code>no</code> yaz.</p>' +
-    S.questions.map(([q, n], i) => `<div class="row" style="margin-bottom:8px"><span style="flex:1;min-width:220px">${esc(q)} <span class="mute">(${n}×)</span></span><input id="qa${i}" placeholder="cevap" style="width:150px"><button onclick="addAnswer(${i})">Kaydet</button></div>`).join('');
+  const pending = S.questions.length ? '<p class="mute" style="margin-top:0">Bu sorular yüzünden ilanlar atlandı. Cevap yazıp Kaydet'e basınca soru listeden kalkar ve sonraki çalıştırmada kullanılır. Evet/Hayır için <code>yes</code> veya <code>no</code> yaz.</p>' +
+    S.questions.map(([q, n], i) => `<div class="row" style="margin-bottom:8px"><span style="flex:1;min-width:220px">${esc(q)} <span class="mute">(${n}×)</span></span><input id="qa${i}" placeholder="cevap" style="width:150px"><button onclick="addAnswer(${i})">Kaydet</button></div>`).join('')
+    : '<p class="mute" style="margin:0">Cevap bekleyen soru yok.</p>';
+  const answered = S.answered.length ? '<details style="margin-top:12px"><summary class="mute" style="cursor:pointer">Cevapladıkların (' + S.answered.length + ')</summary>' +
+    S.answered.map(([q, a]) => `<div style="margin-top:6px">${esc(q)} <b>→ ${esc(Array.isArray(a) ? a.join(' | ') : a)}</b></div>`).join('') + '</details>' : '';
+  $('questions').innerHTML = '<h2>Cevap bekleyen sorular</h2>' + pending + answered;
 }
 async function addAnswer(i) {
   const v = $('qa' + i).value.trim(); if (!v) return;
-  await post('/api/answer', {key: S.questions[i][0], value: v});
+  const r = await api('/api/answer', {key: S.questions[i][0], value: v});
+  if (r.ok) { toast('✓ Cevap kaydedildi: ' + v); await load(true); }
 }
 
 function renderCVs() {
@@ -142,7 +150,7 @@ async function saveSettings() {
     work_type: $('s_wt').value, location: $('s_loc').value.trim(), any_software: $('s_any').value === '1',
     daily_limits: {...S.profile.daily_limits, linkedin: lim}};
   await api('/api/profile', p);
-  editing = false; $('saved').textContent = 'Kaydedildi ✓'; load(true);
+  editing = false; toast('✓ Ayarlar kaydedildi'); load(true);
 }
 
 function renderJobs() {

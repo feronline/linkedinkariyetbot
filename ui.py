@@ -62,6 +62,10 @@ def state() -> dict:
             part = " ".join(part.split())
             if 3 < len(part) < 160 and "Diyalog" not in part and "Zorunlu" not in part:
                 qs[part] = qs.get(part, 0) + 1
+    from botcore.textutil import fold
+    answers = {fold(k): v for k, v in prof["answers"].items()}
+    done = [(q, answers[fold(q)]) for q in qs if fold(q) in answers]
+    qs = {q: n for q, n in qs.items() if fold(q) not in answers}
     log = LOG.read_text(encoding="utf-8", errors="replace")[-3000:] if LOG.exists() else ""
     return {
         "token": TOKEN, "profile": prof, "stats": stats,
@@ -70,7 +74,7 @@ def state() -> dict:
         "logged_in": (ROOT / "data/sessions/linkedin.json").exists(),
         "cvs": [cv_info(p) for p in P.cv_files()],
         "jobs": [dict(zip(("ts", "site", "status", "score", "title", "company", "cv", "note"), r)) for r in rows],
-        "questions": sorted(qs.items(), key=lambda x: -x[1])[:15], "log": log,
+        "questions": sorted(qs.items(), key=lambda x: -x[1])[:15], "answered": done, "log": log,
     }
 
 
