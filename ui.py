@@ -42,7 +42,11 @@ def spawn(name: str, args: list[str]) -> None:
 def cv_info(path: Path) -> dict:
     m = path.stat().st_mtime
     if path.name not in _cache or _cache[path.name][0] != m:
-        a = analyze_cv(path)
+        try:
+            a = analyze_cv(path)
+        except Exception as e:             # okunamayan CV tum arayuzu bozmasin
+            return {"name": path.name, "years": 0, "seniority": "?", "roles": [], "search": [],
+                    "skills": [], "error": f"{type(e).__name__}: {e}"}
         top = sorted(a.skills.items(), key=lambda x: -x[1])[:14]
         _cache[path.name] = (m, {"name": path.name, "years": a.years, "seniority": a.seniority,
                                  "roles": [r for r, _ in a.roles], "search": a.search_keywords,

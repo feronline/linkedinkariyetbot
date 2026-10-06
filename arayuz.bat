@@ -6,5 +6,10 @@ if not exist .venv (
   .venv\Scripts\python -m pip install -r requirements.txt
   .venv\Scripts\python -m playwright install chromium
 )
+.venv\Scripts\python -c "import pypdf, playwright" 2>nul || (
+  echo Eksik paketler kuruluyor...
+  .venv\Scripts\python -m pip install -r requirements.txt
+  .venv\Scripts\python -m playwright install chromium
+)
 .venv\Scripts\python run.py ui
 pause
