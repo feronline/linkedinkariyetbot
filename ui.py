@@ -60,7 +60,10 @@ def state() -> dict:
     for (note,) in q.con.execute("SELECT note FROM jobs WHERE status='needs_answer'"):
         for part in (note or "").split(";"):
             part = " ".join(part.split())
-            if 3 < len(part) < 160 and "Diyalog" not in part and "Zorunlu" not in part:
+            low = part.lower()
+            noise = ("hata:", "diyalog", "zorunlu", "lütfen", "lutfen", "please", "geçerli", "gecerli",
+                     "decimal", "değerinden", "required", "must be", "select an option", "bir seçenek")
+            if 3 < len(part) < 160 and not any(n in low for n in noise):
                 qs[part] = qs.get(part, 0) + 1
     from botcore.textutil import fold
     answers = {fold(k): v for k, v in prof["answers"].items()}

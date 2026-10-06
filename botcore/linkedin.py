@@ -313,7 +313,9 @@ class LinkedIn:
                 await asyncio.sleep(2)
                 errs = await self.form_errors()
                 if errs:
-                    return "needs_answer", "; ".join(dict.fromkeys(unresolved + errs))[:200]
+                    # not: once cevaplanamayan sorular, sonra LinkedIn'in dogrulama hatalari ("HATA:" on ekiyle)
+                    parts = list(dict.fromkeys(unresolved)) + ["HATA: " + " ".join(e.split()) for e in dict.fromkeys(errs)]
+                    return "needs_answer", "; ".join(parts)[:300]
                 if is_submit:
                     body = fold(await self.page.locator("body").inner_text())
                     if "limit" in body and "basvuru" in body and ("gunluk" in body or "daily" in body):

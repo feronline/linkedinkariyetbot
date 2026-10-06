@@ -159,12 +159,24 @@ function renderJobs() {
     : '<p class="mute" style="margin:0">Henüz kayıt yok.</p>';
 }
 
+const sig = {};
+function renderIf(k, data, fn, busy) {
+  const s = JSON.stringify(data);
+  if (sig[k] === s) return;                 // veri degismediyse DOM'a dokunma (yazarken odak kaybolmasin)
+  if (busy && busy()) return;               // kullanici yaziyorsa ertele
+  sig[k] = s; fn();
+}
+const typing = id => () => { const el = $(id); const a = document.activeElement; return (el.contains(a) && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) || [...el.querySelectorAll('input[id^=qa]')].some(i => i.value); };
+
 async function load(force) {
   S = await api('/api/state'); TOKEN = S.token;
-  renderStatus(); renderQuestions(); renderJobs();
+  if (force) for (const k in sig) delete sig[k];
+  renderIf('status', [S.quota, S.running, S.login_running, S.logged_in, S.cvs.length, S.stats], renderStatus);
+  renderIf('q', [S.questions, S.answered], renderQuestions, typing('questions'));
+  renderIf('jobs', S.jobs, renderJobs);
+  renderIf('cvs', S.cvs, renderCVs);
+  renderIf('set', S.profile, renderSettings, () => editing || typing('settings')());
   $('log').textContent = S.log || 'Henüz çalıştırılmadı.';
-  if (force || !$('drop')) renderCVs();
-  renderSettings();
 }
 load(true);
 setInterval(() => load(false), 5000);
