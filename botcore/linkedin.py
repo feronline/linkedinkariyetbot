@@ -84,6 +84,11 @@ class LinkedIn:
             return str(v) if v != "" else None
         return None
 
+    def profile_mtime(self) -> float:
+        """Profil sonradan degistiyse (yeni cevap eklendiyse) 'cevap gerekli' ilanlar tekrar denenir."""
+        f = Path("data/profile.json")
+        return f.stat().st_mtime if f.exists() else 0.0
+
     # -- giris --
     async def ensure_login(self) -> bool:
         await self.page.goto("https://www.linkedin.com/feed/", wait_until="domcontentloaded")
@@ -222,6 +227,7 @@ class LinkedIn:
     async def fill_step(self) -> list[str]:
         """Gorunen alanlari doldurur; cevaplanamayan etiketleri dondurur."""
         unresolved = []
+        self.missing: dict[str, dict] = {}     # etiket -> {kind, options} (arayuzde dropdown gostermek icin)
         fields = await self.page.evaluate(FORM_JS, MODAL)
         radios: dict[str, list] = {}
 
@@ -246,15 +252,16 @@ class LinkedIn:
                         continue
                     ans = fold(self.answer_for(lab) or "")
                     pick = None
+                    real = [o for o in opts if o["v"]]
                     if ans:
-                        pick = next((o for o in opts if o["v"] and (
-                            ans in fold(o["t"])
-                            or (ans in YES and fold(o["t"]) in YES)
-                            or (ans in NO and fold(o["t"]) in NO))), None)
+                        pick = (next((o for o in real if ans == fold(o["t"])), None)      # once tam eslesme
+                                or next((o for o in real if (ans in YES and fold(o["t"]) in YES) or (ans in NO and fold(o["t"]) in NO)), None)
+                                or next((o for o in real if ans in fold(o["t"])), None))
                     if pick:
                         await loc(f["i"]).select_option(value=pick["v"])
                     else:
                         unresolved.append(lab)
+                        self.missing[lab] = {"kind": "select", "options": [o["t"] for o in real if not fold(o["t"]).startswith(("select", "bir secenek"))][:60]}
                 elif f["tag"] == "textarea" or t in ("text", "number", "tel", "email", "url"):
                     if f["value"].strip():
                         continue
@@ -266,6 +273,7 @@ class LinkedIn:
                         ans = m.group(0).replace(",", ".") if m else None
                     if ans is None:
                         unresolved.append(lab)
+                        self.missing[lab] = {"kind": "text", "options": []}
                     else:
                         await loc(f["i"]).fill(ans)
             except Exception as e:
@@ -280,6 +288,7 @@ class LinkedIn:
                 await self.tick(loc(pick["i"]))
             else:
                 unresolved.append(lab)
+                self.missing[lab] = {"kind": "radio", "options": [o["opt"] for o in opts if o["opt"]]}
         return [u for u in unresolved if u]
 
     async def form_errors(self) -> list[str]:
@@ -314,6 +323,7 @@ class LinkedIn:
                 errs = await self.form_errors()
                 if errs:
                     # not: once cevaplanamayan sorular, sonra LinkedIn'in dogrulama hatalari ("HATA:" on ekiyle)
+                    self.q.add_questions(self.missing)
                     parts = list(dict.fromkeys(unresolved)) + ["HATA: " + " ".join(e.split()) for e in dict.fromkeys(errs)]
                     return "needs_answer", "; ".join(parts)[:300]
                 if is_submit:
@@ -340,7 +350,7 @@ class LinkedIn:
                     for jid in ids:
                         if self.q.remaining(SITE) <= 0 or self.limit_hit:
                             return
-                        if self.q.seen(SITE, jid) or jid in self.dry_seen:
+                        if self.q.seen(SITE, jid, self.profile_mtime()) or jid in self.dry_seen:
                             continue
                         self.dry_seen.add(jid)
                         job = await self.open_job(jid)

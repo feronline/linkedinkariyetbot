@@ -66,6 +66,10 @@ def state() -> dict:
             if 3 < len(part) < 160 and not any(n in low for n in noise):
                 qs[part] = qs.get(part, 0) + 1
     from botcore.textutil import fold
+    meta = {r[0]: {"kind": r[1], "options": json.loads(r[2] or "[]")}
+            for r in q.con.execute("SELECT label, kind, options FROM questions")}
+    for label in meta:                      # yeni kayit (secenekli) olan sorular da listeye girer
+        qs.setdefault(label, 1)
     answers = {fold(k): v for k, v in prof["answers"].items()}
     done = [(q, answers[fold(q)]) for q in qs if fold(q) in answers]
     qs = {q: n for q, n in qs.items() if fold(q) not in answers}
@@ -77,7 +81,7 @@ def state() -> dict:
         "logged_in": (ROOT / "data/sessions/linkedin.json").exists(),
         "cvs": [cv_info(p) for p in P.cv_files()],
         "jobs": [dict(zip(("ts", "site", "status", "score", "title", "company", "cv", "note"), r)) for r in rows],
-        "questions": sorted(qs.items(), key=lambda x: -x[1])[:15], "answered": done, "log": log,
+        "questions": [[k, n, meta.get(k, {"kind": "text", "options": []})] for k, n in sorted(qs.items(), key=lambda x: -x[1])[:15]], "answered": done, "log": log,
     }
 
 

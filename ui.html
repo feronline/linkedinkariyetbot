@@ -83,7 +83,10 @@ function renderStatus() {
 
 function renderQuestions() {
   const pending = S.questions.length ? '<p class="mute" style="margin-top:0">Bu sorular yüzünden ilanlar atlandı. Cevap yazıp Kaydet düğmesine basınca soru listeden kalkar ve sonraki çalıştırmada kullanılır. Evet/Hayır için <code>yes</code> veya <code>no</code> yaz.</p>' +
-    S.questions.map(([q, n], i) => `<div class="row" style="margin-bottom:8px"><span style="flex:1;min-width:220px">${esc(q)} <span class="mute">(${n}×)</span></span><input id="qa${i}" placeholder="cevap" style="width:150px"><button onclick="addAnswer(${i})">Kaydet</button></div>`).join('')
+    S.questions.map(([q, n, m], i) => `<div class="row" style="margin-bottom:8px"><span style="flex:1;min-width:220px">${esc(q)} <span class="mute">(${n}×)</span></span>${
+      m.options.length
+        ? `<select id="qa${i}" style="width:210px"><option value="">Seç…</option>${m.options.map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join('')}</select>`
+        : `<input id="qa${i}" placeholder="cevap" style="width:210px">`}<button onclick="addAnswer(${i})">Kaydet</button></div>`).join('')
     : '<p class="mute" style="margin:0">Cevap bekleyen soru yok.</p>';
   const answered = S.answered.length ? '<details style="margin-top:12px"><summary class="mute" style="cursor:pointer">Cevapladıkların (' + S.answered.length + ')</summary>' +
     S.answered.map(([q, a]) => `<div style="margin-top:6px">${esc(q)} <b>→ ${esc(Array.isArray(a) ? a.join(' | ') : a)}</b></div>`).join('') + '</details>' : '';
@@ -166,7 +169,7 @@ function renderIf(k, data, fn, busy) {
   if (busy && busy()) return;               // kullanici yaziyorsa ertele
   sig[k] = s; fn();
 }
-const typing = id => () => { const el = $(id); const a = document.activeElement; return (el.contains(a) && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) || [...el.querySelectorAll('input[id^=qa]')].some(i => i.value); };
+const typing = id => () => { const el = $(id); const a = document.activeElement; return (el.contains(a) && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) || [...el.querySelectorAll('[id^=qa]')].some(i => i.value); };
 
 async function load(force) {
   S = await api('/api/state'); TOKEN = S.token;
