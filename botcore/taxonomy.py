@@ -96,21 +96,21 @@ ROLES: dict[str, dict] = {
 
 # (maks yil, etiket, basliklarda dislanacak kelimeler, aranacak LinkedIn deneyim kodlari)
 SENIORITY = [
-    (1.0, "entry", ["senior", "lead", "principal", "staff", "head", "manager", "director", "architect", "sr."], ["Internship", "Entry level"]),
-    (3.0, "junior", ["senior", "lead", "principal", "staff", "head", "manager", "director", "architect", "sr."], ["Entry level", "Associate"]),
-    (6.0, "mid", ["principal", "staff", "head", "manager", "director", "architect"], ["Associate", "Mid-Senior level"]),
+    (1.0, "entry", ["senior", "lead", "principal", "staff", "head", "manager", "director", "architect", "sr.", "kidemli", "yonetici", "mudur", "takim lideri", "uzman yardimcisi"], ["Internship", "Entry level"]),
+    (3.0, "junior", ["senior", "lead", "principal", "staff", "head", "manager", "director", "architect", "sr.", "kidemli", "yonetici", "mudur", "takim lideri", "uzman yardimcisi"], ["Entry level", "Associate"]),
+    (6.0, "mid", ["principal", "staff", "head", "manager", "director", "architect", "yonetici", "mudur"], ["Associate", "Mid-Senior level"]),
     (99.0, "senior", ["intern", "junior", "trainee", "entry"], ["Mid-Senior level", "Director"]),
 ]
 
 # "Yazilimla alakali her sey" modu: bu basliklar herhangi bir CV icin uygundur
 GENERIC_TITLES = [
-    "software", "developer", "engineer", "programmer", "yazilim", "gelistirici", "mühendis",
+    "software", "developer", "programmer", "yazilim", "gelistirici", "full-stack", "sdk",
     "full stack", "fullstack", "backend", "back-end", "frontend", "front-end", "web",
     "mobile", "ios", "android", "game", "unity", "data engineer", "data scientist",
     "data analyst", "machine learning", "ai ", " ai", "devops", "qa automation", "sdet",
     "cloud", "python", "react", "node", "java", ".net", "flutter",
 ]
-NON_SOFTWARE = ["sales", "marketing", "recruiter", "accountant", "nurse", "driver", "teacher",
+NON_SOFTWARE = ["data center", "operations engineer", "field engineer", "maintenance", "technician", "hr ", "payroll", "warehouse", "logistics", "sales", "marketing", "recruiter", "accountant", "nurse", "driver", "teacher",
                 "mechanical", "civil", "electrical", "chemical", "hardware", "network engineer",
-                "security guard", "support specialist", "customer", "designer", "artist",
+                "security guard", "support specialist", "destek uzmani", "help desk", "technical support", "satis", "muhasebe", "pazarlama", "musteri", "insan kaynaklari", "operasyon", "temsilcisi", "customer", "designer", "artist",
                 "animator", "producer", "trainer", "tutor", "auditor", "analyst - finance"]
