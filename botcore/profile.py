@@ -9,6 +9,7 @@ SESSIONS = DATA / "sessions"
 
 DEFAULT = {
     "daily_limits": {"linkedin": 20, "kariyernet": 20},
+    "phone": "",                    # ulke kodsuz, ornek 5XXXXXXXXX (doluysa LinkedIn'deki kayitli numaranin YERINE yazilir)
     "min_score": 50,
     "any_software": True,           # yazilimla alakali her ilana basvur (CV rolu zorunlu degil)
     "work_type": ["Remote", "On-site", "Hybrid"],   # liste: istedigini birakabilirsin

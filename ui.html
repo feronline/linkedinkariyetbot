@@ -126,6 +126,7 @@ function renderSettings() {
   const ans = Object.entries(p.answers).map(([k, v]) => [k, Array.isArray(v) ? v.join(' | ') : v]);
   $('settings').innerHTML = `<h2>Ayarlar</h2>
     <div class="grid">
+      <div><label>Telefon (ülke kodsuz, ör. 5XXXXXXXXX)</label><input id="s_phone" value="${esc(p.phone || '')}" placeholder="5XXXXXXXXX"></div>
       <div><label>Günlük başvuru sınırı</label><input type="number" id="s_lim" min="1" max="100" value="${p.daily_limits.linkedin}"></div>
       <div><label>En az ilan puanı (0–100)</label><input type="number" id="s_min" min="0" max="100" value="${p.min_score}"></div>
       <div><label>Çalışma şekli</label><div class="row" id="s_wt">${[['Remote','Uzaktan'],['On-site','Ofis'],['Hybrid','Hibrit']].map(([v, t]) => `<label style="display:inline-flex;gap:5px;align-items:center;color:var(--ink);margin:0"><input type="checkbox" value="${v}" ${[].concat(p.work_type).includes(v) ? 'checked' : ''}>${t}</label>`).join('')}</div></div>
@@ -149,7 +150,7 @@ async function saveSettings() {
     answers[k] = v.includes('|') ? v.split('|').map(x => x.trim()).filter(Boolean) : v;
   });
   const lim = +$('s_lim').value;
-  const p = {...S.profile, answers, cover_letter: $('s_cl').value, min_score: +$('s_min').value,
+  const p = {...S.profile, phone: $('s_phone').value.trim(), answers, cover_letter: $('s_cl').value, min_score: +$('s_min').value,
     work_type: [...document.querySelectorAll('#s_wt input:checked')].map(x => x.value), location: $('s_loc').value.trim(), any_software: $('s_any').value === '1',
     daily_limits: {...S.profile.daily_limits, linkedin: lim}};
   await api('/api/profile', p);

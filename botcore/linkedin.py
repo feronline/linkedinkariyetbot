@@ -85,6 +85,15 @@ class LinkedIn:
             return str(v) if v != "" else None
         return None
 
+    def phone_digits(self) -> str:
+        """profile.json'daki telefon -> ulke kodsuz, 0'siz rakamlar (5XXXXXXXXX)."""
+        d = re.sub(r"\D", "", str(self.prof.get("phone", "")))
+        if d.startswith("90") and len(d) == 12:
+            d = d[2:]
+        if d.startswith("0") and len(d) == 11:
+            d = d[1:]
+        return d
+
     def profile_mtime(self) -> float:
         """Profil sonradan degistiyse (yeni cevap eklendiyse) 'cevap gerekli' ilanlar tekrar denenir."""
         f = Path("data/profile.json")
@@ -266,6 +275,11 @@ class LinkedIn:
                         unresolved.append(lab)
                         self.missing[lab] = {"kind": "select", "options": [o["t"] for o in real if not fold(o["t"]).startswith(("select", "bir secenek"))][:60]}
                 elif f["tag"] == "textarea" or t in ("text", "number", "tel", "email", "url"):
+                    phone = self.phone_digits()
+                    if phone and any(k in fl for k in ("phone", "telefon", "mobile", "cep")) and "country" not in fl and "ulke" not in fl:
+                        if f["value"] != phone:                   # LinkedIn profilindeki eski/yanlis numaranin yerine yaz
+                            await loc(f["i"]).fill(phone)
+                        continue
                     if f["value"].strip():
                         continue
                     ans = self.answer_for(lab)
