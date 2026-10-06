@@ -82,7 +82,7 @@ function renderStatus() {
 }
 
 function renderQuestions() {
-  const pending = S.questions.length ? '<p class="mute" style="margin-top:0">Bu sorular yüzünden ilanlar atlandı. Cevap yazıp Kaydet'e basınca soru listeden kalkar ve sonraki çalıştırmada kullanılır. Evet/Hayır için <code>yes</code> veya <code>no</code> yaz.</p>' +
+  const pending = S.questions.length ? '<p class="mute" style="margin-top:0">Bu sorular yüzünden ilanlar atlandı. Cevap yazıp Kaydet düğmesine basınca soru listeden kalkar ve sonraki çalıştırmada kullanılır. Evet/Hayır için <code>yes</code> veya <code>no</code> yaz.</p>' +
     S.questions.map(([q, n], i) => `<div class="row" style="margin-bottom:8px"><span style="flex:1;min-width:220px">${esc(q)} <span class="mute">(${n}×)</span></span><input id="qa${i}" placeholder="cevap" style="width:150px"><button onclick="addAnswer(${i})">Kaydet</button></div>`).join('')
     : '<p class="mute" style="margin:0">Cevap bekleyen soru yok.</p>';
   const answered = S.answered.length ? '<details style="margin-top:12px"><summary class="mute" style="cursor:pointer">Cevapladıkların (' + S.answered.length + ')</summary>' +
