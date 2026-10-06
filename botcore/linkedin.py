@@ -10,6 +10,7 @@ import difflib
 import random
 import re
 from pathlib import Path
+from urllib.parse import quote
 
 from .analyzer import CVAnalysis, score_job
 from .quota import Quota
@@ -97,12 +98,14 @@ class LinkedIn:
 
     # -- arama --
     def search_url(self, keywords: str, cv: CVAnalysis, start: int = 0) -> str:
-        p = ["f_AL=true", f"keywords={keywords.replace(' ', '%20')}", "sortBy=DD"]
+        p = ["f_AL=true", f"keywords={quote(keywords)}", "sortBy=DD"]
         if self.prof["location"]:
-            p.append(f"location={self.prof['location'].replace(' ', '%20')}")
-        wt = {"Remote": 2, "On-site": 1, "Hybrid": 3}.get(self.prof["work_type"])
-        if wt:
-            p.append(f"f_WT={wt}")
+            p.append(f"location={quote(self.prof['location'])}")
+        types = self.prof["work_type"]
+        types = [types] if isinstance(types, str) else types       # eski profil: tek metin
+        wt = [str({"Remote": 2, "On-site": 1, "Hybrid": 3}[t]) for t in types if t in ("Remote", "On-site", "Hybrid")]
+        if wt and len(wt) < 3:
+            p.append("f_WT=" + "%2C".join(wt))
         codes = [str(EXP_CODES[l]) for l in cv.experience_levels if l in EXP_CODES]
         if codes:
             p.append("f_E=" + "%2C".join(codes))

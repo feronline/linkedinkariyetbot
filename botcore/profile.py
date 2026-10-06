@@ -11,7 +11,7 @@ DEFAULT = {
     "daily_limits": {"linkedin": 20, "kariyernet": 20},
     "min_score": 50,
     "any_software": True,           # yazilimla alakali her ilana basvur (CV rolu zorunlu degil)
-    "work_type": "Remote",          # "", "Remote", "On-site", "Hybrid"
+    "work_type": ["Remote", "On-site", "Hybrid"],   # liste: istedigini birakabilirsin
     "location": "",
     "pages_per_query": 2,
     "delay_seconds": [6, 14],
