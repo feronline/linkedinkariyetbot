@@ -62,7 +62,7 @@ async def cmd_apply(args):
         prof["min_score"] = args.min_score
     q = Quota(prof["daily_limits"])
     if args.limit:
-        q.daily["linkedin"] = q.used_today("linkedin") + args.limit
+        q.daily["linkedin"] = min(q.daily["linkedin"], q.used_today("linkedin") + args.limit)
     log.info(f"Bugun kalan LinkedIn kotasi: {q.remaining('linkedin')}")
     async with async_playwright() as pw:
         b = await pw.chromium.launch(headless=False)

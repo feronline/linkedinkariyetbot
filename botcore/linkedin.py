@@ -67,8 +67,15 @@ class LinkedIn:
 
     def answer_for(self, label: str) -> str | None:
         f = fold(label)
+        in_tr = "turkey" in f or "turkiye" in f
+        if in_tr and any(k in f for k in ("authoriz", "calisma izni", "work permit", "right to work", "eligible")):
+            return "yes"                      # Turkiye'de calisma izni sorulursa: evet
+        if in_tr and any(k in f for k in ("sponsor", "vize", "visa")):
+            return "no"
         for key in sorted(self.prof["answers"], key=len, reverse=True):
             val = self.prof["answers"][key]
+            if isinstance(val, list):         # liste ise rastgele biri (ornegin maas araligi)
+                val = random.choice(val) if val else ""
             if val != "" and fold(key) in f:
                 return str(val)
         # "How many years of ... experience with X?" gibi sorular: genel deneyim yili

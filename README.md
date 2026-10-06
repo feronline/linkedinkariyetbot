@@ -41,6 +41,10 @@ python run.py apply --limit 3 --min-score 70   # bu çalıştırmada en fazla 3,
 python run.py status         # bugünkü kota ve son kayıtlar
 ```
 
+## Her gün otomatik çalıştırma (isteğe bağlı, Windows)
+
+`scheduled.py`, Görev Zamanlayıcı ile sık aralıklarla çağrılır; her gün 10:00–16:30 arasında **rastgele** bir saat seçer, bilgisayar açıkken o saatten sonra günde bir kez çalıştırır ve o günkü başvuru sayısını da 12–20 arasında rastgele belirler. Kurmak için PowerShell'de `New-ScheduledTaskAction -Execute pythonw.exe -Argument scheduled.py -WorkingDirectory <proje klasörü>` ile 20 dakikada bir tekrarlayan bir görev oluştur. Günlük çıktı `data/scheduled.log` dosyasına yazılır.
+
 ## `data/profile.json` ayarları
 
 | Ayar | Anlamı | Varsayılan |
