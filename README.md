@@ -57,7 +57,7 @@ python run.py status         # bugünkü kota ve son kayıtlar
 | `min_score` | Başvuru için en az ilan puanı (0–100) | `50` |
 | `any_software` | `true`: yazılımla ilgili her ilana bak. `false`: sadece CV'nin rolüne uyanlar | `true` |
 | `work_type` | Liste: `Remote` (uzaktan), `On-site` (ofis), `Hybrid` (hibrit). Birden fazla seçilebilir | hepsi |
-| `location` | Konum, ör. `Türkiye` ya da `İstanbul` (boşsa dünya geneli) | boş |
+| `locations` | Konum listesi, ör. `["İstanbul, Türkiye", "Kocaeli, Türkiye", "Germany", "Canada"]`. Her biri sırayla taranır; boşsa dünya geneli | boş |
 | `pages_per_query` | Her aramada kaç sayfa taransın | `2` |
 | `delay_seconds` | Başvurular arası bekleme aralığı (sn) | `[6, 14]` |
 | `cover_letter` | Kapak yazısı istenirse kullanılacak metin | boş |

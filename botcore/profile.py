@@ -13,7 +13,7 @@ DEFAULT = {
     "min_score": 50,
     "any_software": True,           # yazilimla alakali her ilana basvur (CV rolu zorunlu degil)
     "work_type": ["Remote", "On-site", "Hybrid"],   # liste: istedigini birakabilirsin
-    "location": "",
+    "locations": [],                # ornek: ["Istanbul, Turkiye", "Germany"]; bos = dunya geneli
     "pages_per_query": 2,
     "delay_seconds": [6, 14],
     "cover_letter": "",
@@ -36,6 +36,9 @@ def load() -> dict:
         user = json.loads(PROFILE.read_text(encoding="utf-8"))
         prof.update({k: v for k, v in user.items() if k != "answers"})
         prof["answers"] = {**DEFAULT["answers"], **user.get("answers", {})}
+        if "locations" not in user and user.get("location"):      # eski tek konumlu profil
+            prof["locations"] = [user["location"]]
+        prof.pop("location", None)
     return prof
 
 

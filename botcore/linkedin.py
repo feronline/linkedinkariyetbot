@@ -106,10 +106,10 @@ class LinkedIn:
         return "/feed" in self.page.url
 
     # -- arama --
-    def search_url(self, keywords: str, cv: CVAnalysis, start: int = 0) -> str:
+    def search_url(self, keywords: str, cv: CVAnalysis, start: int = 0, location: str = "") -> str:
         p = ["f_AL=true", f"keywords={quote(keywords)}", "sortBy=DD"]
-        if self.prof["location"]:
-            p.append(f"location={quote(self.prof['location'])}")
+        if location:
+            p.append(f"location={quote(location)}")
         types = self.prof["work_type"]
         types = [types] if isinstance(types, str) else types       # eski profil: tek metin
         wt = [str({"Remote": 2, "On-site": 1, "Hybrid": 3}[t]) for t in types if t in ("Remote", "On-site", "Hybrid")]
@@ -354,43 +354,54 @@ class LinkedIn:
             await self.close_modal()
 
     # -- ana dongu --
+    def search_plan(self) -> list[tuple]:
+        """(cv, anahtar kelime, konum, sayfa) listesi. Sayfa > anahtar kelime > CV > konum sirasiyla
+        doner; boylece gunluk kota az olsa bile butun konumlar ve CV'ler dengeli taranir."""
+        locs = self.prof.get("locations") or [""]
+        plan = []
+        for pg in range(self.prof["pages_per_query"]):
+            for ki in range(3):
+                for cv in self.cvs:
+                    if ki < len(cv.search_keywords):
+                        for loc in locs:
+                            plan.append((cv, cv.search_keywords[ki], loc, pg))
+        return plan
+
     async def run(self, dry: bool = False):
-        for cv in self.cvs:
-            for kw in cv.search_keywords[:3]:
-                for pg in range(self.prof["pages_per_query"]):
-                    if self.q.remaining(SITE) <= 0 or self.limit_hit:
-                        self.log.info("Gunluk limit doldu, duruyorum.")
-                        return
-                    self.log.info(f"[{Path(cv.file).stem}] '{kw}' sayfa {pg + 1}")
-                    ids = await self.list_job_ids(self.search_url(kw, cv, start=25 * pg))
-                    self.log.info(f"   {len(ids)} ilan")
-                    for jid in ids:
-                        if self.q.remaining(SITE) <= 0 or self.limit_hit:
-                            return
-                        if self.q.seen(SITE, jid, self.profile_mtime()) or jid in self.dry_seen:
-                            continue
-                        self.dry_seen.add(jid)
-                        job = await self.open_job(jid)
-                        if not job or not job["title"]:
-                            continue
-                        sc, best = self.best_cv(job)
-                        tag = f"{job['title']} @ {job['company']}"
-                        if sc.score < self.prof["min_score"]:
-                            if not dry:
-                                self.q.record(SITE, jid, job["title"], job["company"], "", sc.score, "skipped", sc.reason)
-                            self.log.info(f"   - {tag}  puan={sc.score} atlandi ({sc.reason})")
-                            continue
-                        cvname = Path(best.file).stem
-                        if dry:
-                            self.log.info(f"   + {tag}  puan={sc.score} -> {cvname} [DRY]  {sc.reason}")
-                            continue
-                        self.log.info(f"   > {tag}  puan={sc.score} -> {cvname}")
-                        try:
-                            status, note = await self.apply(best)
-                        except Exception as e:      # tek ilan hatasi tum calismayi durdurmasin
-                            status, note = "failed", f"hata: {str(e)[:120]}"
-                            await self.close_modal()
-                        if status != "retry":   # gecici hata: bir sonraki calistirmada tekrar dene
-                            self.q.record(SITE, jid, job["title"], job["company"], cvname, sc.score, status, note)
-                        self.log.info(f"     sonuc: {status} {note}")
-                        await self.pause()
+        for cv, kw, loc, pg in self.search_plan():
+            if self.q.remaining(SITE) <= 0 or self.limit_hit:
+                self.log.info("Gunluk limit doldu, duruyorum.")
+                return
+            self.log.info(f"[{Path(cv.file).stem}] '{kw}' | {loc or 'dunya geneli'} | sayfa {pg + 1}")
+            ids = await self.list_job_ids(self.search_url(kw, cv, start=25 * pg, location=loc))
+            self.log.info(f"   {len(ids)} ilan")
+            for jid in ids:
+                if self.q.remaining(SITE) <= 0 or self.limit_hit:
+                    return
+                if self.q.seen(SITE, jid, self.profile_mtime()) or jid in self.dry_seen:
+                    continue
+                self.dry_seen.add(jid)
+                job = await self.open_job(jid)
+                if not job or not job["title"]:
+                    continue
+                sc, best = self.best_cv(job)
+                tag = f"{job['title']} @ {job['company']}"
+                if sc.score < self.prof["min_score"]:
+                    if not dry:
+                        self.q.record(SITE, jid, job["title"], job["company"], "", sc.score, "skipped", sc.reason)
+                    self.log.info(f"   - {tag}  puan={sc.score} atlandi ({sc.reason})")
+                    continue
+                cvname = Path(best.file).stem
+                if dry:
+                    self.log.info(f"   + {tag}  puan={sc.score} -> {cvname} [DRY]  {sc.reason}")
+                    continue
+                self.log.info(f"   > {tag}  puan={sc.score} -> {cvname}")
+                try:
+                    status, note = await self.apply(best)
+                except Exception as e:      # tek ilan hatasi tum calismayi durdurmasin
+                    status, note = "failed", f"hata: {str(e)[:120]}"
+                    await self.close_modal()
+                if status != "retry":       # gecici hata: bir sonraki calistirmada tekrar dene
+                    self.q.record(SITE, jid, job["title"], job["company"], cvname, sc.score, status, note)
+                self.log.info(f"     sonuc: {status} {note}")
+                await self.pause()
