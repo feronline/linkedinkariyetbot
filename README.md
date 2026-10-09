@@ -53,11 +53,10 @@ python run.py status         # bugünkü kota ve son kayıtlar
 
 | Ayar | Anlamı | Varsayılan |
 |---|---|---|
-| `daily_limits.linkedin` | Günlük en fazla başvuru | `20` |
+| `daily_limits.linkedin` | Günlük toplam başvuru sınırı (konum sınırları toplamı aşmamalı) | `20` |
 | `min_score` | Başvuru için en az ilan puanı (0–100) | `50` |
 | `any_software` | `true`: yazılımla ilgili her ilana bak. `false`: sadece CV'nin rolüne uyanlar | `true` |
-| `work_type` | Liste: `Remote` (uzaktan), `On-site` (ofis), `Hybrid` (hibrit). Birden fazla seçilebilir | hepsi |
-| `locations` | Konum listesi, ör. `["İstanbul, Türkiye", "Kocaeli, Türkiye", "Germany", "Canada"]`. Her biri sırayla taranır; boşsa dünya geneli | boş |
+| `locations` | Konum listesi. Her konum ayrı: `{"name": "Germany", "work_type": ["Remote","On-site","Hybrid"], "daily_limit": 15}`. Boşsa dünya geneli | boş |
 | `pages_per_query` | Her aramada kaç sayfa taransın | `2` |
 | `delay_seconds` | Başvurular arası bekleme aralığı (sn) | `[6, 14]` |
 | `cover_letter` | Kapak yazısı istenirse kullanılacak metin | boş |
@@ -118,6 +117,6 @@ data/                 SENİN VERİN (git'e girmez): cvs/, profile.json, sessions
 |---|---|
 | "Oturum geçersiz" | `python run.py login` ile yeniden giriş yap |
 | Hiç başvuru olmuyor | `python run.py status` ile notlara bak; çoğu ilan `needs_answer` ise `answers`'ı doldur |
-| Çok az ilan geliyor | `min_score` düşür, `work_type` boşalt, `pages_per_query` artır |
+| Çok az ilan geliyor | `min_score` düşür, konumun `work_type` seçeneklerini artır, `pages_per_query` artır |
 | LinkedIn arayüzü değişti, bot buton bulamıyor | `botcore/linkedin.py` en üstündeki seçici/anahtar kelime listelerini güncelle |
 | Hesap için doğrulama (captcha) çıktı | Bot'u durdur, tarayıcıda elle çöz, bir süre bekle |

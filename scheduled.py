@@ -2,7 +2,7 @@
 
 Her gun 10:00-16:30 arasinda RASTGELE bir saat secer; bilgisayar o saatten sonra
 acik/uyanik oldugunda bir kez calisir, gun icinde tekrar calismaz. Gun icin basvuru
-sayisi da 12-20 arasi rastgeledir (ust sinir profile.json'daki daily_limits).
+sayisi da 40-60 arasi rastgeledir (ust sinir profile.json'daki daily_limits).
 """
 import json
 import random
@@ -28,7 +28,7 @@ def main() -> None:
     today = date.today().isoformat()
     st = json.loads(STATE.read_text()) if STATE.exists() else {}
     if st.get("day") != today:
-        st = {"day": today, "target": pick_target(), "started": False, "limit": random.randint(12, 20)}
+        st = {"day": today, "target": pick_target(), "started": False, "limit": random.randint(40, 60)}
         STATE.write_text(json.dumps(st))
     if st["started"]:
         return

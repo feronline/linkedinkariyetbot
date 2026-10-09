@@ -82,6 +82,7 @@ def state() -> dict:
     return {
         "token": TOKEN, "profile": prof, "stats": stats,
         "quota": {s: [q.used_today(s), q.daily[s]] for s in q.daily},
+        "locq": [[l["name"] or "Dünya geneli", q.used_today("linkedin", l["name"]), l["daily_limit"]] for l in prof["locations"]],
         "running": running("apply"), "login_running": running("login"),
         "logged_in": (ROOT / "data/sessions/linkedin.json").exists(),
         "cvs": [cv_info(p) for p in P.cv_files()],

@@ -72,6 +72,7 @@ function renderStatus() {
     <div class="row" style="margin-bottom:12px">
       <b>LinkedIn bugün</b><div class="bar"><i style="width:${Math.min(100, used / lim * 100)}%"></i></div><b>${used} / ${lim}</b>
     </div>
+    <div style="margin-bottom:12px">${S.locq.map(([n, u, l]) => `<div class="row" style="margin:3px 0"><span style="width:170px">${esc(n)}</span><div class="bar"><i style="width:${Math.min(100, u / Math.max(l, 1) * 100)}%"></i></div><span class="mute" style="width:56px;text-align:right">${u} / ${l}</span></div>`).join('')}</div>
     <div class="row">
       <button class="p" ${S.running || !S.logged_in || !S.cvs.length ? 'disabled' : ''} onclick="post('/api/start')">▶ Başlat</button>
       <button ${S.running ? '' : 'disabled'} onclick="post('/api/stop')">■ Durdur</button>
@@ -127,12 +128,13 @@ function renderSettings() {
   $('settings').innerHTML = `<h2>Ayarlar</h2>
     <div class="grid">
       <div><label>Telefon (ülke kodsuz, ör. 5XXXXXXXXX)</label><input id="s_phone" value="${esc(p.phone || '')}" placeholder="5XXXXXXXXX"></div>
-      <div><label>Günlük başvuru sınırı</label><input type="number" id="s_lim" min="1" max="100" value="${p.daily_limits.linkedin}"></div>
+      <div><label>Günlük toplam sınır</label><input type="number" id="s_lim" min="1" max="100" value="${p.daily_limits.linkedin}"></div>
       <div><label>En az ilan puanı (0–100)</label><input type="number" id="s_min" min="0" max="100" value="${p.min_score}"></div>
-      <div><label>Çalışma şekli</label><div class="row" id="s_wt">${[['Remote','Uzaktan'],['On-site','Ofis'],['Hybrid','Hibrit']].map(([v, t]) => `<label style="display:inline-flex;gap:5px;align-items:center;color:var(--ink);margin:0"><input type="checkbox" value="${v}" ${[].concat(p.work_type).includes(v) ? 'checked' : ''}>${t}</label>`).join('')}</div></div>
-      <div style="grid-column:1/-1"><label>Konumlar (noktalı virgülle ayır; boş = dünya geneli)</label><input id="s_loc" style="width:100%" value="${esc((p.locations || []).join('; '))}" placeholder="İstanbul, Türkiye; Kocaeli, Türkiye; Germany; Canada"></div>
       <div><label>Yazılımla ilgili her ilana bak</label><select id="s_any"><option value="1" ${p.any_software ? 'selected' : ''}>Evet</option><option value="0" ${p.any_software ? '' : 'selected'}>Hayır, sadece CV rolüne uyanlar</option></select></div>
     </div>
+    <label style="margin-top:14px">Konumlar <span class="mute">(her konum için çalışma şekli ve günlük başvuru sınırı ayrı; boş bırakırsan dünya geneli aranır)</span></label>
+    <div id="locs">${(p.locations || []).map(locRow).join('')}</div>
+    <div class="row" style="margin-top:8px"><button onclick="addLoc()">+ Konum ekle</button></div>
     <label style="margin-top:14px">Form cevapları <span class="mute">(soru bu anahtarı içeriyorsa cevap yazılır; birden fazla değeri <code>|</code> ile ayır, biri rastgele seçilir)</span></label>
     <div id="ans">${ans.map(([k, v]) => ansRow(k, v)).join('')}</div>
     <div class="row" style="margin-top:8px"><button onclick="addRow()">+ Cevap ekle</button></div>
@@ -140,6 +142,9 @@ function renderSettings() {
     <div class="row" style="margin-top:12px"><button class="p" onclick="saveSettings()">Kaydet</button><span class="mute" id="saved"></span></div>`;
   $('settings').oninput = () => { editing = true; };
 }
+const WT = [['Remote', 'Uzaktan'], ['On-site', 'Ofis'], ['Hybrid', 'Hibrit']];
+const locRow = l => `<div class="row lr" style="margin-bottom:6px"><input class="ln" value="${esc(l.name)}" style="width:210px" placeholder="ör. Germany">${WT.map(([v, t]) => `<label style="display:inline-flex;gap:4px;align-items:center;color:var(--ink);margin:0"><input type="checkbox" value="${v}" ${(l.work_type || []).includes(v) ? 'checked' : ''}>${t}</label>`).join('')}<input class="ll" type="number" min="0" max="100" value="${l.daily_limit ?? 15}" style="width:70px" title="günlük sınır"><span class="mute">/gün</span><button class="d" onclick="this.parentElement.remove(); editing = true">×</button></div>`;
+function addLoc() { $('locs').insertAdjacentHTML('beforeend', locRow({name: '', work_type: ['On-site', 'Hybrid'], daily_limit: 15})); editing = true; }
 const ansRow = (k, v) => `<div class="row ar" style="margin-bottom:6px"><input class="ak" value="${esc(k)}" style="width:210px" placeholder="anahtar"><input class="av" value="${esc(v)}" style="flex:1;min-width:160px" placeholder="cevap"><button class="d" onclick="this.parentElement.remove(); editing = true">×</button></div>`;
 function addRow() { $('ans').insertAdjacentHTML('beforeend', ansRow('', '')); editing = true; }
 async function saveSettings() {
@@ -151,7 +156,7 @@ async function saveSettings() {
   });
   const lim = +$('s_lim').value;
   const p = {...S.profile, phone: $('s_phone').value.trim(), answers, cover_letter: $('s_cl').value, min_score: +$('s_min').value,
-    work_type: [...document.querySelectorAll('#s_wt input:checked')].map(x => x.value), locations: $('s_loc').value.split(String.fromCharCode(10)).join(';').split(';').map(x => x.trim()).filter(Boolean), any_software: $('s_any').value === '1',
+    locations: [...document.querySelectorAll('.lr')].map(r => ({name: r.querySelector('.ln').value.trim(), work_type: [...r.querySelectorAll('input[type=checkbox]:checked')].map(x => x.value), daily_limit: +r.querySelector('.ll').value})).filter(l => l.name), any_software: $('s_any').value === '1',
     daily_limits: {...S.profile.daily_limits, linkedin: lim}};
   await api('/api/profile', p);
   editing = false; toast('✓ Ayarlar kaydedildi'); load(true);

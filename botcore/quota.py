@@ -21,6 +21,10 @@ class Quota:
             PRIMARY KEY(site, job_id))""")
         self.con.execute("""CREATE TABLE IF NOT EXISTS questions(
             label TEXT PRIMARY KEY, kind TEXT, options TEXT, n INTEGER, ts TEXT)""")
+        try:
+            self.con.execute("ALTER TABLE jobs ADD COLUMN location TEXT")
+        except sqlite3.OperationalError:
+            pass                                  # sutun zaten var
         self.con.commit()
 
     def add_questions(self, missing: dict):
@@ -32,10 +36,13 @@ class Quota:
                 (label, info["kind"], json.dumps(info["options"], ensure_ascii=False), now))
         self.con.commit()
 
-    def used_today(self, site: str) -> int:
-        r = self.con.execute("SELECT COUNT(*) FROM jobs WHERE site=? AND day=? AND status='applied'",
-                             (site, date.today().isoformat())).fetchone()
-        return r[0]
+    def used_today(self, site: str, location: str | None = None) -> int:
+        sql = "SELECT COUNT(*) FROM jobs WHERE site=? AND day=? AND status='applied'"
+        args = [site, date.today().isoformat()]
+        if location is not None:
+            sql += " AND location=?"
+            args.append(location)
+        return self.con.execute(sql, args).fetchone()[0]
 
     def remaining(self, site: str) -> int:
         return max(0, self.daily.get(site, 20) - self.used_today(site))
@@ -49,11 +56,12 @@ class Quota:
             return False
         return True
 
-    def record(self, site, job_id, title, company, profile, score, status, note=""):
+    def record(self, site, job_id, title, company, profile, score, status, note="", location=""):
         now = datetime.now()
-        self.con.execute("INSERT OR REPLACE INTO jobs VALUES(?,?,?,?,?,?,?,?,?,?)",
+        self.con.execute("INSERT OR REPLACE INTO jobs(site,job_id,title,company,profile,score,status,note,ts,day,location) "
+                         "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                          (site, job_id, title, company, profile, score, status, note,
-                          now.isoformat(timespec="seconds"), now.date().isoformat()))
+                          now.isoformat(timespec="seconds"), now.date().isoformat(), location))
         self.con.commit()
 
     def lock_today(self, site: str):

@@ -13,7 +13,7 @@ DEFAULT = {
     "min_score": 50,
     "any_software": True,           # yazilimla alakali her ilana basvur (CV rolu zorunlu degil)
     "work_type": ["Remote", "On-site", "Hybrid"],   # liste: istedigini birakabilirsin
-    "locations": [],                # ornek: ["Istanbul, Turkiye", "Germany"]; bos = dunya geneli
+    "locations": [],                # her konum: {"name","work_type":[...],"daily_limit":15}; bos = dunya geneli
     "pages_per_query": 2,
     "delay_seconds": [6, 14],
     "cover_letter": "",
@@ -39,7 +39,20 @@ def load() -> dict:
         if "locations" not in user and user.get("location"):      # eski tek konumlu profil
             prof["locations"] = [user["location"]]
         prof.pop("location", None)
+    prof["locations"] = _norm_locations(prof)
     return prof
+
+
+def _norm_locations(prof: dict) -> list[dict]:
+    """Eski bicimleri (duz metin) {name, work_type, daily_limit} sozlugune cevirir."""
+    out = []
+    for l in prof.get("locations") or []:
+        d = {"name": l} if isinstance(l, str) else dict(l)
+        wt = d.get("work_type", prof.get("work_type") or ["Remote", "On-site", "Hybrid"])
+        d["work_type"] = [wt] if isinstance(wt, str) else list(wt)
+        d["daily_limit"] = int(d.get("daily_limit", 15))
+        out.append(d)
+    return out
 
 
 def save(prof: dict) -> None:

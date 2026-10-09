@@ -106,14 +106,15 @@ class LinkedIn:
         return "/feed" in self.page.url
 
     # -- arama --
-    def search_url(self, keywords: str, cv: CVAnalysis, start: int = 0, location: str = "") -> str:
+    def search_url(self, keywords: str, cv: CVAnalysis, start: int = 0, loc: dict | None = None) -> str:
         p = ["f_AL=true", f"keywords={quote(keywords)}", "sortBy=DD"]
-        if location:
-            p.append(f"location={quote(location)}")
-        types = self.prof["work_type"]
-        types = [types] if isinstance(types, str) else types       # eski profil: tek metin
+        loc = loc or {"name": "", "work_type": self.prof.get("work_type") or []}
+        if loc["name"]:
+            p.append(f"location={quote(loc['name'])}")
+        types = loc["work_type"]
+        types = [types] if isinstance(types, str) else types
         wt = [str({"Remote": 2, "On-site": 1, "Hybrid": 3}[t]) for t in types if t in ("Remote", "On-site", "Hybrid")]
-        if wt and len(wt) < 3:
+        if wt and len(wt) < 3:                      # 3'u de secili = filtre yok
             p.append("f_WT=" + "%2C".join(wt))
         codes = [str(EXP_CODES[l]) for l in cv.experience_levels if l in EXP_CODES]
         if codes:
@@ -357,7 +358,8 @@ class LinkedIn:
     def search_plan(self) -> list[tuple]:
         """(cv, anahtar kelime, konum, sayfa) listesi. Sayfa > anahtar kelime > CV > konum sirasiyla
         doner; boylece gunluk kota az olsa bile butun konumlar ve CV'ler dengeli taranir."""
-        locs = self.prof.get("locations") or [""]
+        locs = self.prof.get("locations") or [{"name": "", "work_type": self.prof.get("work_type") or [],
+                                               "daily_limit": self.prof["daily_limits"]["linkedin"]}]
         plan = []
         for pg in range(self.prof["pages_per_query"]):
             for ki in range(3):
@@ -367,17 +369,25 @@ class LinkedIn:
                             plan.append((cv, cv.search_keywords[ki], loc, pg))
         return plan
 
+    def loc_remaining(self, loc: dict) -> int:
+        return max(0, loc["daily_limit"] - self.q.used_today(SITE, loc["name"]))
+
     async def run(self, dry: bool = False):
         for cv, kw, loc, pg in self.search_plan():
             if self.q.remaining(SITE) <= 0 or self.limit_hit:
                 self.log.info("Gunluk limit doldu, duruyorum.")
                 return
-            self.log.info(f"[{Path(cv.file).stem}] '{kw}' | {loc or 'dunya geneli'} | sayfa {pg + 1}")
-            ids = await self.list_job_ids(self.search_url(kw, cv, start=25 * pg, location=loc))
+            if self.loc_remaining(loc) <= 0:
+                continue                              # bu konumun gunluk hakki doldu, siradakine gec
+            lname = loc["name"] or "dunya geneli"
+            self.log.info(f"[{Path(cv.file).stem}] '{kw}' | {lname} ({self.loc_remaining(loc)} hak) | sayfa {pg + 1}")
+            ids = await self.list_job_ids(self.search_url(kw, cv, start=25 * pg, loc=loc))
             self.log.info(f"   {len(ids)} ilan")
             for jid in ids:
                 if self.q.remaining(SITE) <= 0 or self.limit_hit:
                     return
+                if self.loc_remaining(loc) <= 0:
+                    break
                 if self.q.seen(SITE, jid, self.profile_mtime()) or jid in self.dry_seen:
                     continue
                 self.dry_seen.add(jid)
@@ -388,7 +398,7 @@ class LinkedIn:
                 tag = f"{job['title']} @ {job['company']}"
                 if sc.score < self.prof["min_score"]:
                     if not dry:
-                        self.q.record(SITE, jid, job["title"], job["company"], "", sc.score, "skipped", sc.reason)
+                        self.q.record(SITE, jid, job["title"], job["company"], "", sc.score, "skipped", sc.reason, loc["name"])
                     self.log.info(f"   - {tag}  puan={sc.score} atlandi ({sc.reason})")
                     continue
                 cvname = Path(best.file).stem
@@ -402,6 +412,6 @@ class LinkedIn:
                     status, note = "failed", f"hata: {str(e)[:120]}"
                     await self.close_modal()
                 if status != "retry":       # gecici hata: bir sonraki calistirmada tekrar dene
-                    self.q.record(SITE, jid, job["title"], job["company"], cvname, sc.score, status, note)
+                    self.q.record(SITE, jid, job["title"], job["company"], cvname, sc.score, status, note, loc["name"])
                 self.log.info(f"     sonuc: {status} {note}")
                 await self.pause()
